@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow Pro</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --glass: rgba(255, 255, 255, 0.1);
+            --bg: #1e1b4b;
+            --text: white;
+        }
+
+        [data-theme="light"] {
+            --bg: #f0f4ff;
+            --glass: rgba(255, 255, 255, 0.7);
+            --text: #1e1b4b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .container {
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .timer-circle {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary) 0%, transparent 0%);
+            margin: 2rem auto;
+            display: grid;
+            place-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .timer-display {
+            font-size: 3rem;
+            font-weight: 600;
+        }
+
+        .task-list {
+            margin-top: 2rem;
+            background: var(--glass);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: move;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .add-task {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--glass);
+            padding: 2rem;
+            border-radius: 1rem;
+            backdrop-filter: blur(16px);
+            display: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="timer-circle" id="timer">
+            <div class="timer-display">25:00</div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">▶️ Start</button>
+            <button id="pauseBtn">⏸️ Pause</button>
+            <button id="themeBtn">🌓 Theme</button>
+        </div>
+
+        <div class="stats">
+            <div>🔥 Streak: <span id="streak">0</span></div>
+            <div>✅ Tasks: <span id="tasksDone">0</span></div>
+        </div>
+
+        <div class="task-list" id="taskList"></div>
+    </div>
+
+    <div class="add-task" id="addTask">+</div>
+
+    <script>
+        class FocusFlow {
+            constructor() {
+                this.timer = {
+                    work: 25,
+                    break: 5,
+                    timeLeft: 25 * 60,
+                    isRunning: false,
+                    sessions: 0,
+                    streak: 0
+                };
+                
+                this.tasks = [];
+                this.interval = null;
+                
+                this.init();
+            }
+
+            init() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startTimer());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.pauseTimer());
+                document.getElementById('themeBtn').addEventListener('click', () => this.toggleTheme());
+                document.getElementById('addTask').addEventListener('click', () => this.addTask(prompt('New task:')));
+            }
+
+            startTimer() {
+                if (!this.timer.isRunning) {
+                    this.timer.isRunning = true;
+                    this.interval = setInterval(() => this.tick(), 1000);
+                }
+            }
+
+            pauseTimer() {
+                this.timer.isRunning = false;
+                clearInterval(this.interval);
+            }
+
+            tick() {
+                this.timer.timeLeft--;
+                this.updateDisplay();
+                
+                if (this.timer.timeLeft <= 0) {
+                    this.completeSession();
+                }
+            }
+
+            completeSession() {
+                this.pauseTimer();
+                this.timer.sessions++;
+                this.timer.streak++;
+                this.timer.timeLeft = this.timer.work * 60;
+                this.updateDisplay();
+            }
+
+            updateDisplay() {
+                const minutes = Math.floor(this.timer.timeLeft / 60);
+                const seconds = this.timer.timeLeft % 60;
+                document.querySelector('.timer-display').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                document.getElementById('streak').textContent = this.timer.streak;
+            }
+
+            addTask(text) {
+                if (text) {
+                    this.tasks.push(text);
+                    this.renderTasks();
+                }
+            }
+
+            renderTasks() {
+                const taskList = document.getElementById('taskList');
+                taskList.innerHTML = this.tasks.map(task => `
+                    <div class="task-item">
+                        <span>${task}</span>
+                    </div>
+                `).join('');
+            }
+
+            toggleTheme() {
+                document.body.dataset.theme = 
+                    document.body.dataset.theme === 'light' ? 'dark' : 'light';
+            }
+        }
+
+        new FocusFlow();
+    </script>
+</body>
+</html>
